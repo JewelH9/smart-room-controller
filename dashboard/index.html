@@ -1,0 +1,1075 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Smart Room Controller</title>
+    <style>
+      :root {
+        --bg: #0a0f1c;
+        --card: #131c2e;
+        --card2: #1a2540;
+        --text: #e8eef9;
+        --muted: #8a9ab5;
+        --line: #24304a;
+        --accent: #3b82f6;
+        --good: #34d399;
+        --bad: #f87171;
+        --warn: #fbbf24;
+      }
+      body[data-theme="light"] {
+        --bg: #eef2f7;
+        --card: #ffffff;
+        --card2: #f1f5f9;
+        --text: #0f172a;
+        --muted: #64748b;
+        --line: #e2e8f0;
+        --accent: #2563eb;
+        --good: #059669;
+        --bad: #dc2626;
+        --warn: #d97706;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100vh;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      /* ---------- Top bar (full width) ---------- */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px 20px;
+        background: var(--card);
+        border-bottom: 1px solid var(--line);
+      }
+      h1 {
+        font-size: 1.15rem;
+        margin: 0;
+      }
+      .pills {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .pill {
+        font-size: 0.78rem;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: var(--card2);
+        border: 1px solid var(--line);
+      }
+      .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--bad);
+        margin-right: 6px;
+      }
+      .dot.ok {
+        background: var(--good);
+        box-shadow: 0 0 8px var(--good);
+      }
+      .dot.warn {
+        background: var(--warn);
+      }
+
+      /* ---------- 12-column grid that fills the whole page ---------- */
+      main {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 14px;
+        padding: 16px 20px 30px;
+        width: 100%;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+        min-width: 0;
+      }
+      .c3 {
+        grid-column: span 3;
+      }
+      .c4 {
+        grid-column: span 4;
+      }
+      .c6 {
+        grid-column: span 6;
+      }
+      .c8 {
+        grid-column: span 8;
+      }
+      .c12 {
+        grid-column: span 12;
+      }
+      @media (max-width: 1100px) {
+        .c3 {
+          grid-column: span 6;
+        }
+        .c4 {
+          grid-column: span 6;
+        }
+        .c8 {
+          grid-column: span 12;
+        }
+      }
+      @media (max-width: 700px) {
+        .c3,
+        .c4,
+        .c6,
+        .c8 {
+          grid-column: span 12;
+        }
+        main {
+          padding: 12px;
+        }
+      }
+      .stale {
+        opacity: 0.5;
+        transition: opacity 0.4s;
+      }
+
+      .label {
+        font-size: 0.72rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .big {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+      .sub {
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .on {
+        color: var(--good);
+      }
+      .off {
+        color: var(--bad);
+      }
+      .center {
+        text-align: center;
+      }
+      svg.gauge {
+        width: 100%;
+        max-width: 230px;
+        display: block;
+        margin: 6px auto 0;
+      }
+      .track {
+        fill: none;
+        stroke: var(--line);
+        stroke-width: 14;
+        stroke-linecap: round;
+      }
+      .bar {
+        fill: none;
+        stroke-width: 14;
+        stroke-linecap: round;
+        transition:
+          stroke-dashoffset 0.6s,
+          stroke 0.6s;
+      }
+      .meter {
+        height: 10px;
+        background: var(--line);
+        border-radius: 99px;
+        overflow: hidden;
+        margin-top: 14px;
+      }
+      .meter i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, #1e3a8a, #fde047);
+        transition: width 0.6s;
+      }
+
+      /* ---------- Appliance cards ---------- */
+      .appl {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .icon {
+        font-size: 3rem;
+        opacity: 0.3;
+        transition:
+          opacity 0.3s,
+          filter 0.3s;
+      }
+      .icon.fanon {
+        opacity: 1;
+        animation: spin 0.8s linear infinite;
+      }
+      .icon.lighton {
+        opacity: 1;
+        filter: drop-shadow(0 0 16px #fde047);
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .seg {
+        display: flex;
+        gap: 6px;
+        margin-top: 14px;
+      }
+      .seg button {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: transparent;
+      }
+      .seg button:hover {
+        background: var(--card2);
+      }
+      .seg button.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 99px;
+        background: var(--card2);
+        border: 1px solid var(--line);
+        margin-left: 6px;
+      }
+
+      canvas {
+        width: 100%;
+        height: 240px;
+        display: block;
+      }
+      .mini {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .mini b {
+        color: var(--text);
+      }
+
+      /* ---------- Energy ---------- */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .stats b {
+        display: block;
+        font-size: 1.3rem;
+        margin-top: 2px;
+      }
+      .note {
+        font-size: 0.74rem;
+        color: var(--muted);
+        margin-top: 12px;
+        line-height: 1.4;
+      }
+      .tariff {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 12px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      input[type="number"] {
+        width: 70px;
+        padding: 6px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--card2);
+        color: var(--text);
+      }
+
+      /* ---------- Settings ---------- */
+      .presets {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 8px;
+        margin: 12px 0;
+      }
+      .presets button {
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--card2);
+      }
+      .presets button:hover {
+        border-color: var(--accent);
+      }
+      .slider {
+        margin-top: 10px;
+      }
+      .slider label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+      .apply {
+        margin-top: 14px;
+        width: 100%;
+        padding: 11px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 600;
+      }
+      .ghost {
+        padding: 6px 12px;
+        border-radius: 99px;
+        border: 1px solid var(--line);
+        background: var(--card2);
+        font-size: 0.78rem;
+      }
+
+      /* ---------- Log ---------- */
+      ul {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+        font-size: 0.86rem;
+        max-height: 260px;
+        overflow: auto;
+      }
+      li {
+        padding: 7px 0;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        gap: 12px;
+      }
+      li time {
+        color: var(--muted);
+        min-width: 78px;
+      }
+      .head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+
+      #toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translate(-50%, 80px);
+        background: var(--accent);
+        color: #fff;
+        padding: 10px 18px;
+        border-radius: 99px;
+        transition: transform 0.3s;
+        z-index: 20;
+        font-size: 0.9rem;
+      }
+      #toast.show {
+        transform: translate(-50%, 0);
+      }
+    </style>
+  </head>
+  <body data-theme="dark">
+    <header>
+      <h1>🏠 Smart Room Controller</h1>
+      <div class="pills">
+        <span class="pill"
+          ><span class="dot" id="brokerDot"></span
+          ><span id="brokerTxt">Broker</span></span
+        >
+        <span class="pill"
+          ><span class="dot" id="devDot"></span
+          ><span id="devTxt">Device</span></span
+        >
+        <span class="pill" id="ago">No data yet</span>
+        <span class="pill" id="clock"></span>
+        <button class="ghost" id="fsBtn">⛶ Fullscreen</button>
+        <button class="ghost" id="themeBtn">🌓 Theme</button>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- Row 1: live readings -->
+      <section class="card c3 center">
+        <div class="label">Temperature</div>
+        <svg class="gauge" viewBox="0 0 200 120">
+          <path class="track" d="M20 100 A80 80 0 0 1 180 100" />
+          <path
+            class="bar"
+            id="tBar"
+            d="M20 100 A80 80 0 0 1 180 100"
+            stroke="var(--good)"
+            stroke-dasharray="251.3"
+            stroke-dashoffset="251.3"
+          />
+          <text
+            x="100"
+            y="92"
+            text-anchor="middle"
+            font-size="30"
+            font-weight="700"
+            fill="var(--text)"
+            id="tTxt"
+          >
+            --
+          </text>
+        </svg>
+        <div class="sub" id="tState">Waiting for device...</div>
+      </section>
+
+      <section class="card c3 center">
+        <div class="label">Humidity</div>
+        <svg class="gauge" viewBox="0 0 200 120">
+          <path class="track" d="M20 100 A80 80 0 0 1 180 100" />
+          <path
+            class="bar"
+            id="hBar"
+            d="M20 100 A80 80 0 0 1 180 100"
+            stroke="var(--accent)"
+            stroke-dasharray="251.3"
+            stroke-dashoffset="251.3"
+          />
+          <text
+            x="100"
+            y="92"
+            text-anchor="middle"
+            font-size="30"
+            font-weight="700"
+            fill="var(--text)"
+            id="hTxt"
+          >
+            --
+          </text>
+        </svg>
+        <div class="sub" id="hState">&nbsp;</div>
+      </section>
+
+      <section class="card c3 center">
+        <div class="label">Room occupancy</div>
+        <svg class="gauge" viewBox="0 0 100 100" style="max-width: 150px">
+          <circle
+            class="track"
+            cx="50"
+            cy="50"
+            r="42"
+            style="stroke-width: 9"
+          />
+          <circle
+            class="bar"
+            id="oRing"
+            cx="50"
+            cy="50"
+            r="42"
+            stroke="var(--good)"
+            style="stroke-width: 9"
+            stroke-dasharray="263.9"
+            stroke-dashoffset="263.9"
+            transform="rotate(-90 50 50)"
+          />
+          <text
+            x="50"
+            y="47"
+            text-anchor="middle"
+            font-size="20"
+            font-weight="700"
+            fill="var(--text)"
+            id="oTxt"
+          >
+            --
+          </text>
+          <text
+            x="50"
+            y="63"
+            text-anchor="middle"
+            font-size="9"
+            fill="var(--muted)"
+            id="oSub"
+          >
+            &nbsp;
+          </text>
+        </svg>
+        <div class="sub" id="countdown">Auto-off timer</div>
+      </section>
+
+      <section class="card c3">
+        <div class="label">Ambient light</div>
+        <div class="big" id="dark">--</div>
+        <div class="meter"><i id="ldrBar"></i></div>
+        <div class="sub" id="ldr">raw: --</div>
+        <div class="sub">
+          Light turns on automatically only when the room is dark
+          <b>and</b> occupied.
+        </div>
+      </section>
+
+      <!-- Row 2: controls -->
+      <section class="card c6">
+        <div class="appl">
+          <span class="icon" id="fanIcon">🌀</span>
+          <div>
+            <div class="label">
+              Fan <span class="badge" id="fanMode">--</span>
+            </div>
+            <div class="big" id="fan">--</div>
+          </div>
+        </div>
+        <div class="seg" id="fanBtns">
+          <button data-cmd="ON">ON</button><button data-cmd="OFF">OFF</button
+          ><button data-cmd="AUTO">AUTO</button>
+        </div>
+      </section>
+
+      <section class="card c6">
+        <div class="appl">
+          <span class="icon" id="lightIcon">💡</span>
+          <div>
+            <div class="label">
+              Light <span class="badge" id="lightMode">--</span>
+            </div>
+            <div class="big" id="light">--</div>
+          </div>
+        </div>
+        <div class="seg" id="lightBtns">
+          <button data-cmd="ON">ON</button><button data-cmd="OFF">OFF</button
+          ><button data-cmd="AUTO">AUTO</button>
+        </div>
+      </section>
+
+      <!-- Row 3: chart + energy -->
+      <section class="card c8">
+        <div class="head">
+          <span class="label">Temperature and humidity history</span>
+          <span><button class="ghost" id="csvBtn">⬇ Export CSV</button></span>
+        </div>
+        <canvas id="chart"></canvas>
+        <div class="mini">
+          <span>🔵 Temperature</span><span>🟣 Humidity</span>
+          <span>Min <b id="mMin">--</b></span
+          ><span>Max <b id="mMax">--</b></span
+          ><span>Avg <b id="mAvg">--</b></span>
+          <span>Samples <b id="mN">0</b></span>
+        </div>
+      </section>
+
+      <section class="card c4">
+        <div class="label">⚡ Energy today (estimate)</div>
+        <div class="stats">
+          <div><span class="sub">Fan runtime</span><b id="fanRt">0 min</b></div>
+          <div>
+            <span class="sub">Light runtime</span><b id="lightRt">0 min</b>
+          </div>
+          <div><span class="sub">Used</span><b id="used">0 Wh</b></div>
+          <div>
+            <span class="sub">Waste avoided</span
+            ><b id="saved" class="on">0 Wh</b>
+          </div>
+          <div><span class="sub">Cost</span><b id="cost">₹0.00</b></div>
+          <div>
+            <span class="sub">Money saved</span
+            ><b id="money" class="on">₹0.00</b>
+          </div>
+        </div>
+        <div class="tariff">
+          Tariff ₹
+          <input type="number" id="tariff" min="1" max="30" step="0.5" /> per
+          kWh
+        </div>
+        <div class="note">
+          Assumes a 60 W fan and a 9 W LED bulb. "Waste avoided" counts time
+          when the room was empty but a plain thermostat or dusk switch would
+          still have kept the appliance on. Stored in this browser and reset
+          daily.
+        </div>
+      </section>
+
+      <!-- Row 4: settings + log -->
+      <section class="card c6">
+        <div class="label">⚙️ Automation settings</div>
+        <div class="presets">
+          <button data-p="26,25,300">📚 Study</button>
+          <button data-p="27,26,1800">😴 Sleep</button>
+          <button data-p="28,27,120">🌱 Eco</button>
+          <button data-p="away">🚪 Away</button>
+        </div>
+        <div class="slider">
+          <label>Fan ON above <span id="vOn"></span></label
+          ><input type="range" id="sOn" min="20" max="35" step="0.5" />
+        </div>
+        <div class="slider">
+          <label>Fan OFF below <span id="vOff"></span></label
+          ><input type="range" id="sOff" min="15" max="34" step="0.5" />
+        </div>
+        <div class="slider">
+          <label>Room-empty timeout <span id="vTo"></span></label
+          ><input type="range" id="sTo" min="5" max="1800" step="5" />
+        </div>
+        <button class="apply" id="apply">Apply to device</button>
+        <div class="note" id="cfgMsg">
+          The OFF threshold must be below the ON threshold. Away turns both
+          appliances OFF manually.
+        </div>
+      </section>
+
+      <section class="card c6">
+        <div class="head">
+          <span class="label">📜 Event log</span
+          ><button class="ghost" id="clearLog">Clear</button>
+        </div>
+        <ul id="log">
+          <li><time>--</time><span>Waiting for events...</span></li>
+        </ul>
+      </section>
+    </main>
+    <div id="toast"></div>
+
+    <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+    <script>
+      const BASE = "jewelh9/room1"; // must match the firmware
+      const FAN_W = 60,
+        LIGHT_W = 9,
+        MAX_POINTS = 120;
+      const $ = (id) => document.getElementById(id);
+
+      // ---------- Theme, fullscreen, clock ----------
+      document.body.dataset.theme = localStorage.getItem("theme") || "dark";
+      $("themeBtn").onclick = () => {
+        const t = document.body.dataset.theme === "dark" ? "light" : "dark";
+        document.body.dataset.theme = t;
+        localStorage.setItem("theme", t);
+        drawChart();
+      };
+      $("fsBtn").onclick = () =>
+        document.fullscreenElement
+          ? document.exitFullscreen()
+          : document.documentElement.requestFullscreen();
+      setInterval(() => {
+        $("clock").textContent = new Date().toLocaleTimeString();
+        updateAgo();
+      }, 1000);
+
+      // ---------- State ----------
+      let last = null,
+        prev = null,
+        lastTs = null,
+        lastMsg = 0,
+        cfgInit = false;
+      const hist = [];
+
+      const today = new Date().toDateString();
+      let store = JSON.parse(localStorage.getItem("energy") || "{}");
+      if (store.day !== today)
+        store = { day: today, fan: 0, light: 0, sFan: 0, sLight: 0 };
+      $("tariff").value = localStorage.getItem("tariff") || 8;
+      $("tariff").oninput = () => {
+        localStorage.setItem("tariff", $("tariff").value);
+        if (last) trackEnergy(last, true);
+      };
+
+      // ---------- MQTT ----------
+      const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
+      client.on("connect", () => {
+        $("brokerDot").className = "dot ok";
+        $("brokerTxt").textContent = "Broker connected";
+        client.subscribe([BASE + "/status", BASE + "/online"]);
+      });
+      client.on("close", () => {
+        $("brokerDot").className = "dot";
+        $("brokerTxt").textContent = "Reconnecting...";
+      });
+
+      client.on("message", (topic, payload) => {
+        const text = payload.toString();
+        if (topic.endsWith("/online")) {
+          const up = text === "online";
+          $("devDot").className = "dot" + (up ? " ok" : "");
+          $("devTxt").textContent = up ? "Device online" : "Device offline";
+          $("main").classList.toggle("stale", !up);
+          addLog(up ? "Device came online" : "Device went offline");
+          return;
+        }
+        let d;
+        try {
+          d = JSON.parse(text);
+        } catch {
+          return;
+        }
+        lastMsg = Date.now();
+        handleStatus(d);
+      });
+
+      function updateAgo() {
+        if (!lastMsg) return;
+        const s = Math.round((Date.now() - lastMsg) / 1000);
+        $("ago").textContent = s < 5 ? "Live" : "Updated " + s + "s ago";
+      }
+
+      // ---------- Main update ----------
+      function handleStatus(d) {
+        last = d;
+        // temperature gauge: 15 to 40 °C mapped to the arc
+        const tf = Math.min(1, Math.max(0, (d.temp - 15) / 25));
+        $("tBar").style.strokeDashoffset = 251.3 * (1 - tf);
+        const hot = d.temp >= d.tOn,
+          cool = d.temp <= d.tOff;
+        $("tBar").style.stroke = hot
+          ? "var(--bad)"
+          : cool
+            ? "var(--good)"
+            : "var(--warn)";
+        $("tTxt").textContent = d.temp.toFixed(1) + "°C";
+        $("tState").textContent = hot
+          ? "Hot: fan runs if the room is occupied"
+          : cool
+            ? "Comfortable"
+            : "In the hysteresis band";
+
+        $("hBar").style.strokeDashoffset =
+          251.3 * (1 - Math.min(1, d.hum / 100));
+        $("hTxt").textContent = d.hum + "%";
+        $("hState").textContent =
+          d.hum > 70 ? "Humid" : d.hum < 30 ? "Dry" : "Comfortable";
+
+        const frac =
+          d.occupied && d.timeout ? Math.min(1, d.left / d.timeout) : 0;
+        $("oRing").style.strokeDashoffset = 263.9 * (1 - frac);
+        $("oTxt").textContent = d.occupied ? fmt(d.left) : "Empty";
+        $("oSub").textContent = d.occupied ? "until auto-off" : "no motion";
+        $("countdown").textContent = d.occupied
+          ? "Occupied. Resets with every movement"
+          : "Appliances held OFF to save power";
+
+        $("dark").textContent = d.dark ? "Dark 🌙" : "Bright ☀️";
+        $("ldr").textContent = "raw: " + d.ldr;
+        $("ldrBar").style.width = Math.min(100, d.ldr / 40.95) + "%";
+
+        setState("fan", d.fan);
+        setState("light", d.light);
+        $("fanMode").textContent = d.fanMode;
+        $("lightMode").textContent = d.lightMode;
+        $("fanIcon").classList.toggle("fanon", d.fan);
+        $("lightIcon").classList.toggle("lighton", d.light);
+        highlight("fanBtns", d.fanMode);
+        highlight("lightBtns", d.lightMode);
+
+        hist.push({ t: Date.now(), temp: d.temp, hum: d.hum, occ: d.occupied });
+        if (hist.length > MAX_POINTS) hist.shift();
+        drawChart();
+        updateStats();
+        trackEnergy(d);
+        detectEvents(d);
+
+        if (!cfgInit) {
+          $("sOn").value = d.tOn;
+          $("sOff").value = d.tOff;
+          $("sTo").value = d.timeout;
+          updateSliderLabels();
+          cfgInit = true;
+        }
+        prev = d;
+      }
+
+      // ---------- Helpers ----------
+      function fmt(s) {
+        return s >= 60 ? Math.floor(s / 60) + "m " + (s % 60) + "s" : s + "s";
+      }
+      function setState(id, on) {
+        const el = $(id);
+        el.textContent = on ? "ON" : "OFF";
+        el.className = "big " + (on ? "on" : "off");
+      }
+      function highlight(g, mode) {
+        document
+          .querySelectorAll("#" + g + " button")
+          .forEach((b) => b.classList.toggle("active", b.dataset.cmd === mode));
+      }
+      function toast(msg) {
+        const t = $("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 2200);
+      }
+
+      function updateStats() {
+        const v = hist.map((p) => p.temp);
+        $("mMin").textContent = Math.min(...v).toFixed(1) + "°";
+        $("mMax").textContent = Math.max(...v).toFixed(1) + "°";
+        $("mAvg").textContent =
+          (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) + "°";
+        $("mN").textContent = hist.length;
+      }
+
+      // ---------- Energy ----------
+      function trackEnergy(d, recalcOnly) {
+        if (!recalcOnly) {
+          const now = Date.now(),
+            dt = lastTs ? (now - lastTs) / 1000 : 0;
+          lastTs = now;
+          if (dt > 0 && dt < 10) {
+            if (d.fan) store.fan += dt;
+            if (d.light) store.light += dt;
+            if (!d.occupied && d.temp >= d.tOn && !d.fan) store.sFan += dt;
+            if (!d.occupied && d.dark && !d.light) store.sLight += dt;
+            localStorage.setItem("energy", JSON.stringify(store));
+          }
+        }
+        const rate = parseFloat($("tariff").value) || 8;
+        const used = (store.fan * FAN_W + store.light * LIGHT_W) / 3600;
+        const saved = (store.sFan * FAN_W + store.sLight * LIGHT_W) / 3600;
+        $("fanRt").textContent = Math.round(store.fan / 60) + " min";
+        $("lightRt").textContent = Math.round(store.light / 60) + " min";
+        $("used").textContent = used.toFixed(1) + " Wh";
+        $("saved").textContent = saved.toFixed(1) + " Wh";
+        $("cost").textContent = "₹" + ((used / 1000) * rate).toFixed(2);
+        $("money").textContent = "₹" + ((saved / 1000) * rate).toFixed(2);
+      }
+
+      // ---------- Log ----------
+      function addLog(msg) {
+        const ul = $("log");
+        if (
+          ul.firstElementChild &&
+          ul.firstElementChild.textContent.includes("Waiting")
+        )
+          ul.innerHTML = "";
+        const li = document.createElement("li");
+        li.innerHTML = "<time></time><span></span>";
+        li.children[0].textContent = new Date().toLocaleTimeString();
+        li.children[1].textContent = msg;
+        ul.prepend(li);
+        while (ul.children.length > 40) ul.removeChild(ul.lastChild);
+      }
+      $("clearLog").onclick = () => {
+        $("log").innerHTML = "<li><time>--</time><span>Log cleared</span></li>";
+      };
+      function detectEvents(d) {
+        if (!prev) return;
+        if (d.occupied !== prev.occupied)
+          addLog(
+            d.occupied
+              ? "Motion detected, room occupied"
+              : "Room empty, timeout reached",
+          );
+        if (d.fan !== prev.fan)
+          addLog(
+            "Fan turned " + (d.fan ? "ON" : "OFF") + " (" + d.fanMode + ")",
+          );
+        if (d.light !== prev.light)
+          addLog(
+            "Light turned " +
+              (d.light ? "ON" : "OFF") +
+              " (" +
+              d.lightMode +
+              ")",
+          );
+        if (d.dark !== prev.dark)
+          addLog(d.dark ? "Room became dark" : "Room became bright");
+      }
+
+      // ---------- Chart (plain canvas) ----------
+      function drawChart() {
+        const c = $("chart"),
+          r = c.getBoundingClientRect(),
+          dpr = window.devicePixelRatio || 1;
+        c.width = r.width * dpr;
+        c.height = r.height * dpr;
+        const g = c.getContext("2d");
+        g.scale(dpr, dpr);
+        const w = r.width,
+          h = r.height,
+          css = getComputedStyle(document.body),
+          col = (n) => css.getPropertyValue(n);
+        g.clearRect(0, 0, w, h);
+        if (hist.length < 2 || !last) return;
+        const x = (i) =>
+          (i + MAX_POINTS - hist.length) * (w / (MAX_POINTS - 1));
+        const scale = (vals, extra) => {
+          const lo = Math.min(...vals, ...extra) - 1,
+            hi = Math.max(...vals, ...extra) + 1;
+          return (v) => h - 8 - ((v - lo) / (hi - lo)) * (h - 20);
+        };
+        const yT = scale(
+          hist.map((p) => p.temp),
+          [last.tOn, last.tOff],
+        );
+        const yH = scale(
+          hist.map((p) => p.hum),
+          [],
+        );
+
+        // shaded bands when the room was occupied
+        g.fillStyle = "rgba(52,211,153,.10)";
+        hist.forEach((p, i) => {
+          if (p.occ)
+            g.fillRect(x(i) - w / MAX_POINTS / 2, 0, w / MAX_POINTS, h);
+        });
+
+        // threshold lines
+        g.setLineDash([5, 5]);
+        g.lineWidth = 1;
+        g.font = "11px system-ui";
+        g.fillStyle = col("--muted");
+        [
+          [last.tOn, "ON " + last.tOn, "--bad"],
+          [last.tOff, "OFF " + last.tOff, "--good"],
+        ].forEach(([v, t, cc]) => {
+          g.strokeStyle = col(cc);
+          g.beginPath();
+          g.moveTo(0, yT(v));
+          g.lineTo(w, yT(v));
+          g.stroke();
+          g.fillText(t, 4, yT(v) - 4);
+        });
+        g.setLineDash([]);
+        g.lineWidth = 2;
+        const line = (key, y, color) => {
+          g.strokeStyle = color;
+          g.beginPath();
+          hist.forEach((p, i) =>
+            i ? g.lineTo(x(i), y(p[key])) : g.moveTo(x(i), y(p[key])),
+          );
+          g.stroke();
+        };
+        line("hum", yH, "#a78bfa");
+        g.lineWidth = 2.8;
+        line("temp", yT, col("--accent").trim());
+        g.fillStyle = col("--muted");
+        g.fillText("green shading = room occupied", w - 160, 14);
+      }
+      window.addEventListener("resize", drawChart);
+
+      // ---------- CSV export ----------
+      $("csvBtn").onclick = () => {
+        if (!hist.length) return toast("No data yet");
+        const rows = ["time,temp_c,humidity_pct,occupied"].concat(
+          hist.map(
+            (p) =>
+              new Date(p.t).toISOString() +
+              "," +
+              p.temp +
+              "," +
+              p.hum +
+              "," +
+              p.occ,
+          ),
+        );
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(
+          new Blob([rows.join("\n")], { type: "text/csv" }),
+        );
+        a.download = "room-data.csv";
+        a.click();
+      };
+
+      // ---------- Controls ----------
+      function wire(g, topic, name) {
+        document.querySelectorAll("#" + g + " button").forEach((b) =>
+          b.addEventListener("click", () => {
+            client.publish(topic, b.dataset.cmd);
+            toast(name + " set to " + b.dataset.cmd);
+          }),
+        );
+      }
+      wire("fanBtns", BASE + "/cmd/fan", "Fan");
+      wire("lightBtns", BASE + "/cmd/light", "Light");
+
+      function updateSliderLabels() {
+        $("vOn").textContent = $("sOn").value + " °C";
+        $("vOff").textContent = $("sOff").value + " °C";
+        $("vTo").textContent = fmt(parseInt($("sTo").value));
+      }
+      ["sOn", "sOff", "sTo"].forEach((id) =>
+        $(id).addEventListener("input", updateSliderLabels),
+      );
+
+      function sendConfig(on, off, to) {
+        if (off >= on) {
+          $("cfgMsg").textContent =
+            "⚠️ OFF threshold must be below ON threshold.";
+          return;
+        }
+        client.publish(BASE + "/cmd/config", on + "," + off + "," + to);
+        addLog(
+          "Settings sent: ON " +
+            on +
+            "°C, OFF " +
+            off +
+            "°C, timeout " +
+            fmt(to),
+        );
+        toast("Settings sent to device");
+      }
+      $("apply").onclick = () =>
+        sendConfig(
+          parseFloat($("sOn").value),
+          parseFloat($("sOff").value),
+          parseInt($("sTo").value),
+        );
+
+      document.querySelectorAll(".presets button").forEach((b) =>
+        b.addEventListener("click", () => {
+          if (b.dataset.p === "away") {
+            client.publish(BASE + "/cmd/fan", "OFF");
+            client.publish(BASE + "/cmd/light", "OFF");
+            addLog("Away preset: fan and light forced OFF");
+            toast("Away mode: everything OFF");
+            return;
+          }
+          const [on, off, to] = b.dataset.p.split(",").map(Number);
+          $("sOn").value = on;
+          $("sOff").value = off;
+          $("sTo").value = to;
+          updateSliderLabels();
+          client.publish(BASE + "/cmd/fan", "AUTO");
+          client.publish(BASE + "/cmd/light", "AUTO");
+          sendConfig(on, off, to);
+        }),
+      );
+    </script>
+  </body>
+</html>
