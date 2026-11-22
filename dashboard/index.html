@@ -52,7 +52,6 @@
         cursor: pointer;
       }
 
-      /* ---------- Top bar (full width) ---------- */
       header {
         position: sticky;
         top: 0;
@@ -99,7 +98,6 @@
         background: var(--warn);
       }
 
-      /* ---------- 12-column grid that fills the whole page ---------- */
       main {
         display: grid;
         grid-template-columns: repeat(12, 1fr);
@@ -216,7 +214,6 @@
         transition: width 0.6s;
       }
 
-      /* ---------- Appliance cards ---------- */
       .appl {
         display: flex;
         align-items: center;
@@ -289,7 +286,6 @@
         color: var(--text);
       }
 
-      /* ---------- Energy ---------- */
       .stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
@@ -324,7 +320,6 @@
         color: var(--text);
       }
 
-      /* ---------- Settings ---------- */
       .presets {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
@@ -371,7 +366,6 @@
         font-size: 0.78rem;
       }
 
-      /* ---------- Log ---------- */
       ul {
         list-style: none;
         margin: 10px 0 0;
@@ -435,7 +429,6 @@
     </header>
 
     <main id="main">
-      <!-- Row 1: live readings -->
       <section class="card c3 center">
         <div class="label">Temperature</div>
         <svg class="gauge" viewBox="0 0 200 120">
@@ -581,7 +574,6 @@
         </div>
       </section>
 
-      <!-- Row 3: chart + energy -->
       <section class="card c8">
         <div class="head">
           <span class="label">Temperature and humidity history</span>
@@ -628,7 +620,6 @@
         </div>
       </section>
 
-      <!-- Row 4: settings + log -->
       <section class="card c6">
         <div class="label">⚙️ Automation settings</div>
         <div class="presets">
@@ -670,13 +661,12 @@
 
     <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
     <script>
-      const BASE = "jewelh9/room1"; // must match the firmware
+      const BASE = "jewelh9-esp1274gg-room1";
       const FAN_W = 60,
         LIGHT_W = 9,
         MAX_POINTS = 120;
       const $ = (id) => document.getElementById(id);
 
-      // ---------- Theme, fullscreen, clock ----------
       document.body.dataset.theme = localStorage.getItem("theme") || "dark";
       $("themeBtn").onclick = () => {
         const t = document.body.dataset.theme === "dark" ? "light" : "dark";
@@ -693,7 +683,6 @@
         updateAgo();
       }, 1000);
 
-      // ---------- State ----------
       let last = null,
         prev = null,
         lastTs = null,
@@ -711,7 +700,6 @@
         if (last) trackEnergy(last, true);
       };
 
-      // ---------- MQTT ----------
       const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
       client.on("connect", () => {
         $("brokerDot").className = "dot ok";
@@ -749,10 +737,8 @@
         $("ago").textContent = s < 5 ? "Live" : "Updated " + s + "s ago";
       }
 
-      // ---------- Main update ----------
       function handleStatus(d) {
         last = d;
-        // temperature gauge: 15 to 40 °C mapped to the arc
         const tf = Math.min(1, Math.max(0, (d.temp - 15) / 25));
         $("tBar").style.strokeDashoffset = 251.3 * (1 - tf);
         const hot = d.temp >= d.tOn,
@@ -814,7 +800,6 @@
         prev = d;
       }
 
-      // ---------- Helpers ----------
       function fmt(s) {
         return s >= 60 ? Math.floor(s / 60) + "m " + (s % 60) + "s" : s + "s";
       }
@@ -844,7 +829,6 @@
         $("mN").textContent = hist.length;
       }
 
-      // ---------- Energy ----------
       function trackEnergy(d, recalcOnly) {
         if (!recalcOnly) {
           const now = Date.now(),
@@ -869,7 +853,6 @@
         $("money").textContent = "₹" + ((saved / 1000) * rate).toFixed(2);
       }
 
-      // ---------- Log ----------
       function addLog(msg) {
         const ul = $("log");
         if (
@@ -911,7 +894,6 @@
           addLog(d.dark ? "Room became dark" : "Room became bright");
       }
 
-      // ---------- Chart (plain canvas) ----------
       function drawChart() {
         const c = $("chart"),
           r = c.getBoundingClientRect(),
@@ -942,14 +924,12 @@
           [],
         );
 
-        // shaded bands when the room was occupied
         g.fillStyle = "rgba(52,211,153,.10)";
         hist.forEach((p, i) => {
           if (p.occ)
             g.fillRect(x(i) - w / MAX_POINTS / 2, 0, w / MAX_POINTS, h);
         });
 
-        // threshold lines
         g.setLineDash([5, 5]);
         g.lineWidth = 1;
         g.font = "11px system-ui";
@@ -983,7 +963,6 @@
       }
       window.addEventListener("resize", drawChart);
 
-      // ---------- CSV export ----------
       $("csvBtn").onclick = () => {
         if (!hist.length) return toast("No data yet");
         const rows = ["time,temp_c,humidity_pct,occupied"].concat(
@@ -1006,7 +985,6 @@
         a.click();
       };
 
-      // ---------- Controls ----------
       function wire(g, topic, name) {
         document.querySelectorAll("#" + g + " button").forEach((b) =>
           b.addEventListener("click", () => {
