@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Smart Room Controller</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0a0f1c" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <style>
       :root {
         --bg: #0a0f1c;
@@ -661,7 +666,14 @@
 
     <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
     <script>
-      const BASE = "jewelh9-esp1274gg-room1";
+      // The room code is typed once on each device and saved there, so it is NOT in the public repo
+      let BASE = localStorage.getItem("roomCode");
+      if (!BASE) {
+        BASE = (
+          prompt("Enter your room code (same as MQTT_BASE in secrets.h):") || ""
+        ).trim();
+        if (BASE) localStorage.setItem("roomCode", BASE);
+      }
       const FAN_W = 60,
         LIGHT_W = 9,
         MAX_POINTS = 120;
@@ -1048,6 +1060,8 @@
           sendConfig(on, off, to);
         }),
       );
+      if ("serviceWorker" in navigator)
+        navigator.serviceWorker.register("sw.js");
     </script>
   </body>
 </html>
