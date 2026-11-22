@@ -46,6 +46,6 @@ ESP32 <--(MQTT subscribe)-- HiveMQ broker <--(commands)-- Web dashboard
 ## Status
 
 - [x] Stage 2: Simulation
-- [ ] Stage 3: Breadboard prototype
+- [x] Stage 3: Breadboard prototype
 - [ ] Stage 4: Real fan/light via relay
 - [x] Stage 5: MQTT + web dashboard
