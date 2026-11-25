@@ -578,6 +578,108 @@
         </div>
       </section>
 
+      <style>
+        .mlg {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
+          margin-top: 10px;
+        }
+        .mlb {
+          background: var(--c2);
+          border-radius: 12px;
+          padding: 12px;
+        }
+        .mlb .big {
+          margin: 2px 0 8px;
+          font-size: 1.6rem;
+        }
+        .wr {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.8rem;
+          margin-top: 6px;
+        }
+        .wr span {
+          flex: 0 0 140px;
+          color: var(--mu);
+        }
+        .wt {
+          position: relative;
+          flex: 1;
+          height: 10px;
+          background: var(--ln);
+          border-radius: 5px;
+        }
+        .wt i {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          border-radius: 5px;
+        }
+        .wt:after {
+          content: "";
+          position: absolute;
+          left: 50%;
+          top: -2px;
+          bottom: -2px;
+          width: 1px;
+          background: var(--mu);
+        }
+        .wr em {
+          flex: 0 0 44px;
+          font-style: normal;
+          text-align: right;
+        }
+      </style>
+      <section class="card w">
+        <div class="lb">🤖 ML lab: models that learn from this room</div>
+        <div class="mlg">
+          <div class="mlb">
+            <div class="sub">Someone here in 10 min?</div>
+            <div class="big" id="mlP">--</div>
+            <div class="bar"><i id="mlPb"></i></div>
+            <div class="sub" id="mlPs">&nbsp;</div>
+          </div>
+          <div class="mlb">
+            <div class="sub">Temperature in 10 min</div>
+            <div class="big" id="mlT">--</div>
+            <div class="sub" id="mlTs">&nbsp;</div>
+          </div>
+          <div class="mlb">
+            <div class="sub">Training examples</div>
+            <div class="big" id="mlN">0</div>
+            <div class="sub" id="mlNs">&nbsp;</div>
+          </div>
+        </div>
+        <div class="lb" style="margin-top: 16px">
+          Scoreboard: model vs simple guesses
+        </div>
+        <div id="mlEval"></div>
+        <div class="lb" style="margin-top: 16px">Smart timeout</div>
+        <div id="mlSug"></div>
+        <div class="lb" style="margin-top: 16px">
+          What the occupancy model has learned
+        </div>
+        <div id="mlW"></div>
+        <div class="sub">
+          Green bar = pushes the prediction towards "occupied", red = towards
+          "empty".
+        </div>
+        <button class="gh" id="mlReset" style="margin-top: 12px">
+          Reset models
+        </button>
+        <div class="note">
+          Both models train on your data while this page is open and are stored
+          in this browser. They learn from a 10-minute-ahead answer to each
+          snapshot taken every minute: predict first, then compare with what
+          really happened, then update. The simple guesses ("same as now", "no
+          change") are hard to beat at 10 minutes, so the scoreboard tells you
+          honestly when the model has not earned its place yet.
+        </div>
+      </section>
+
       <section class="card w">
         <div class="lb">🧠 Smart insights</div>
         <div id="ins"></div>
@@ -1420,6 +1522,310 @@
           }),
       );
       renderInsights();
+
+      // ================= ML LAB: tiny models trained on YOUR room's data =================
+      (function () {
+        const HORIZON = 10 * 60000; // predict 10 minutes ahead
+        const KEY = "mlLab_v1";
+        const NAMES = [
+          "bias",
+          "daily cycle (sin)",
+          "daily cycle (cos)",
+          "twice-daily (sin)",
+          "twice-daily (cos)",
+          "weekend",
+          "occupied now",
+          "minutes empty",
+        ];
+
+        // Model memory: wo = occupancy weights, wt = temperature weights, plus running scores
+        const fresh = () => ({
+          wo: Array(8).fill(0),
+          wt: Array(7).fill(0),
+          n: 0,
+          nt: 0,
+          accM: null,
+          accB: null,
+          maeM: null,
+          maeN: null,
+          maeT: null,
+        });
+        let M = fresh();
+        try {
+          const s = JSON.parse(localStorage.getItem(KEY));
+          if (s && s.wo && s.wo.length === 8) M = s;
+        } catch {}
+
+        let queue = [],
+          lastSnap = 0,
+          lastOccAt = Date.now();
+        const sigmoid = (z) => 1 / (1 + Math.exp(-z)); // squashes any number into 0..1
+        const dot = (w, x) => w.reduce((s, wi, i) => s + wi * x[i], 0);
+        const ewma = (old, v, a = 0.02) =>
+          old === null ? v : old * (1 - a) + v * a; // running average
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+        // ---- Features: turn the situation into numbers the model can use ----
+        function timeFeatures(date) {
+          // cyclic encoding: 23:59 and 00:01 end up close together
+          const a =
+            (2 * Math.PI * (date.getHours() + date.getMinutes() / 60)) / 24;
+          return [Math.sin(a), Math.cos(a), Math.sin(2 * a), Math.cos(2 * a)];
+        }
+        function occFeatures(date, occ, emptyMin) {
+          const weekend = [0, 6].includes(date.getDay()) ? 1 : 0;
+          return [
+            1,
+            ...timeFeatures(date),
+            weekend,
+            occ ? 1 : 0,
+            Math.min(emptyMin, 60) / 60,
+          ];
+        }
+        function tempFeatures(date, d) {
+          const m = slope(),
+            s = m === null ? 0 : clamp(m * 10, -2, 2) / 2; // slope() comes from the insights code
+          const t = timeFeatures(date);
+          return [
+            1,
+            (d.temp - 28) / 5,
+            s,
+            d.fan ? 1 : 0,
+            d.occupied ? 1 : 0,
+            t[0],
+            t[1],
+          ];
+        }
+
+        // ---- Runs every 5 s: snapshot, then test-and-train on snapshots that are 10 minutes old ----
+        function tick() {
+          if (!last || Date.now() - lastMsg > 8000) return; // learn only from live data
+          const now = Date.now(),
+            date = new Date(now),
+            d = last;
+          if (d.occupied) lastOccAt = now;
+          const emptyMin = (now - lastOccAt) / 60000;
+
+          if (now - lastSnap >= 60000) {
+            // one snapshot per minute
+            lastSnap = now;
+            const m = slope();
+            queue.push({
+              t: now,
+              xo: occFeatures(date, d.occupied, emptyMin),
+              xt: tempFeatures(date, d),
+              temp: d.temp,
+              occ: d.occupied,
+              trend: d.temp + (m === null ? 0 : m * 10),
+            });
+            if (queue.length > 30) queue.shift();
+          }
+
+          let dirty = false;
+          while (queue.length && now - queue[0].t >= HORIZON) {
+            // 10 minutes passed: the answer is known
+            const s = queue.shift();
+
+            // Occupancy: TEST first (the model has not seen the answer), then TRAIN
+            const p = sigmoid(dot(M.wo, s.xo)),
+              y = d.occupied ? 1 : 0;
+            M.accM = ewma(M.accM, p >= 0.5 === (y === 1) ? 1 : 0);
+            M.accB = ewma(M.accB, s.occ === d.occupied ? 1 : 0); // baseline: "same as now"
+            const g = p - y; // gradient of the log-loss
+            M.wo = M.wo.map((w, i) => w - 0.1 * (g * s.xo[i] + 0.001 * w)); // 0.001*w keeps weights small
+            M.n++;
+
+            // Temperature: predict the CHANGE over 10 minutes
+            const target = d.temp - s.temp,
+              pd = clamp(dot(M.wt, s.xt), -3, 3);
+            M.maeM = ewma(M.maeM, Math.abs(target - pd));
+            M.maeN = ewma(M.maeN, Math.abs(target)); // baseline 1: no change
+            M.maeT = ewma(M.maeT, Math.abs(target - (s.trend - s.temp))); // baseline 2: straight-line trend
+            const e = clamp(pd - target, -3, 3);
+            M.wt = M.wt.map((w, i) => w - 0.02 * e * s.xt[i]);
+            M.nt++;
+            dirty = true;
+          }
+          if (dirty) localStorage.setItem(KEY, JSON.stringify(M));
+          render(date, d, emptyMin);
+        }
+
+        // ---- Showing results ----
+        const seen = {};
+        function setRows(id, rows) {
+          // only rebuilds when the text changed
+          const sig = JSON.stringify(rows.map((r) => r.t + (r.apply || "")));
+          if (seen[id] === sig) return;
+          seen[id] = sig;
+          const box = $(id);
+          box.innerHTML = "";
+          rows.forEach((r) => {
+            const div = document.createElement("div");
+            div.className = "ir";
+            const a = document.createElement("span"),
+              b = document.createElement("span");
+            a.textContent = r.i;
+            b.textContent = r.t;
+            div.append(a, b);
+            if (r.apply) {
+              const bt = document.createElement("button");
+              bt.className = "gh";
+              bt.textContent = "Apply " + fmt(r.apply);
+              bt.onclick = () => {
+                $("sTo").value = r.apply;
+                updateSliderLabels();
+                sendConfig(last.tOn, last.tOff, r.apply);
+              };
+              div.append(bt);
+            }
+            box.append(div);
+          });
+        }
+
+        function drawWeights() {
+          const box = $("mlW");
+          box.innerHTML = "";
+          const mx = Math.max(0.5, ...M.wo.slice(1).map(Math.abs));
+          NAMES.forEach((nm, i) => {
+            if (i === 0) return;
+            const w = M.wo[i],
+              width = (Math.abs(w) / mx) * 50;
+            const r = document.createElement("div");
+            r.className = "wr";
+            const l = document.createElement("span");
+            l.textContent = nm;
+            const t = document.createElement("div");
+            t.className = "wt";
+            const f = document.createElement("i");
+            f.style.width = width + "%";
+            f.style.left = (w >= 0 ? 50 : 50 - width) + "%";
+            f.style.background = w >= 0 ? "var(--gd)" : "var(--bd)";
+            const v = document.createElement("em");
+            v.textContent = (w >= 0 ? "+" : "") + w.toFixed(2);
+            t.append(f);
+            r.append(l, t, v);
+            box.append(r);
+          });
+        }
+
+        function render(date, d, emptyMin) {
+          // Predictions
+          const p = sigmoid(dot(M.wo, occFeatures(date, d.occupied, emptyMin)));
+          const okO = M.n >= 30;
+          $("mlP").textContent = okO
+            ? Math.round(p * 100) + "%"
+            : "learning...";
+          bar("mlPb", okO ? p * 100 : 0, "var(--ac)");
+          $("mlPs").textContent = okO
+            ? p >= 0.5
+              ? "Likely someone is here"
+              : "Likely empty"
+            : "needs " + (30 - M.n) + " more examples";
+
+          const dt = clamp(dot(M.wt, tempFeatures(date, d)), -3, 3),
+            okT = M.nt >= 30;
+          $("mlT").textContent = okT
+            ? (d.temp + dt).toFixed(1) + " °C"
+            : "learning...";
+          $("mlTs").textContent = okT
+            ? "now " +
+              d.temp.toFixed(1) +
+              " °C (" +
+              (dt >= 0 ? "+" : "") +
+              dt.toFixed(2) +
+              ")"
+            : "needs " + (30 - M.nt) + " more examples";
+          $("mlN").textContent = M.n;
+          $("mlNs").textContent =
+            queue.length +
+            " snapshots waiting for their 10-minute answer. One new example per minute while this page is open.";
+
+          // Scoreboard
+          const pct = (v) => (v === null ? "--" : Math.round(v * 100) + "%"),
+            c2 = (v) => (v === null ? "--" : v.toFixed(2) + " °C");
+          const rows = [];
+          rows.push(
+            M.n < 50
+              ? {
+                  i: "🎯",
+                  t:
+                    "Occupancy: " +
+                    M.n +
+                    " answers checked so far. Too early to judge (needs about 50).",
+                }
+              : {
+                  i: "🎯",
+                  t:
+                    "Occupancy accuracy: model " +
+                    pct(M.accM) +
+                    " vs 'same as now' guess " +
+                    pct(M.accB) +
+                    ". " +
+                    (M.accM > M.accB + 0.01
+                      ? "The model beats the simple guess."
+                      : "Not better than the simple guess yet, which is normal early on."),
+                },
+          );
+          rows.push(
+            M.nt < 50
+              ? {
+                  i: "🌡️",
+                  t:
+                    "Temperature: " +
+                    M.nt +
+                    " answers checked so far. Too early to judge.",
+                }
+              : {
+                  i: "🌡️",
+                  t:
+                    "Temperature error 10 min ahead: model " +
+                    c2(M.maeM) +
+                    ", 'no change' " +
+                    c2(M.maeN) +
+                    ", straight-line trend " +
+                    c2(M.maeT) +
+                    ". " +
+                    (M.maeM < Math.min(M.maeN, M.maeT)
+                      ? "The model is the most accurate."
+                      : "A simple guess is still as good or better."),
+                },
+          );
+          setRows("mlEval", rows);
+
+          // Smart timeout: the model gives a probability, a simple rule turns it into a suggestion
+          const pr = sigmoid(dot(M.wo, occFeatures(date, false, 0)));
+          const sug = [];
+          if (M.n < 150)
+            sug.push({
+              i: "⏱️",
+              t:
+                "Needs about 150 training examples first (" + M.n + " so far).",
+            });
+          else {
+            const to = pr >= 0.6 ? 600 : pr >= 0.3 ? 300 : 120;
+            sug.push({
+              i: "⏱️",
+              t:
+                "If the room became empty right now, the model gives a " +
+                Math.round(pr * 100) +
+                "% chance someone is back within 10 minutes. Suggested timeout for this time of day: " +
+                fmt(to) +
+                ".",
+              apply: to !== d.timeout ? to : undefined,
+            });
+          }
+          setRows("mlSug", sug);
+          drawWeights();
+        }
+
+        $("mlReset").onclick = () => {
+          M = fresh();
+          queue = [];
+          localStorage.removeItem(KEY);
+          toast("ML models reset");
+        };
+        setInterval(tick, 5000);
+      })();
     </script>
   </body>
 </html>
