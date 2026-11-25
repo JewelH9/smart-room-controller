@@ -22,12 +22,6 @@ unsigned long roomTimeout = 10000UL;        // 10 s for testing. Later: 300000UL
 const unsigned long PIR_WARMUP      = 60000UL;  // ignore the PIR for the first 60 s
 const unsigned long SENSOR_INTERVAL = 2000UL;   // DHT22 can only be read every ~2 s
 
-// ================= NOISE FILTERS (the bug fixes) =================
-const unsigned long RELAY_BLANK     = 3000UL;   // ignore the PIR for 3 s after a relay switches
-const unsigned long PIR_STUCK_LIMIT = 30000UL;  // PIR HIGH this long without a break = treat as noise
-const unsigned long LIGHT_ON_DELAY  = 3000UL;   // must be dark this long before "dark" counts
-const unsigned long LIGHT_OFF_DELAY = 20000UL;  // must be bright this long before "bright" counts
-
 // ================= MQTT =================
 const char* MQTT_HOST    = "broker.hivemq.com";
 const int   MQTT_PORT    = 1883;
@@ -53,7 +47,7 @@ unsigned long lastWifiTry    = 0;
 
 bool everSeenMotion = false;
 bool occupied  = false;       // someone is (recently) in the room
-bool dark      = false;       // debounced darkness
+bool dark      = false;
 bool autoFan   = false;       // what the automation wants
 bool autoLight = false;
 bool fanOn     = false;       // what the relays are really doing
@@ -65,14 +59,6 @@ Mode lightMode = AUTO;
 
 float temperature = 25.0;
 float humidity    = 50.0;
-
-// State used by the noise filters
-unsigned long lastRelayChange = 0;   // when a relay last switched
-unsigned long pirHighSince    = 0;   // when the current PIR HIGH run started
-bool pirWasHigh = false;
-bool lastRawDark = false;            // last raw LDR reading
-unsigned long lightChangeAt = 0;     // when the raw LDR reading last changed
-bool lastFanOut = false, lastLightOut = false;
 
 // ---------- Helper: Mode -> text ----------
 const char* modeName(Mode m) {
@@ -180,27 +166,13 @@ bool readSensors(unsigned long now) {
   return true;
 }
 
-// ---------- Is someone in the room? (with noise filters) ----------
+// ---------- Is someone in the room? ----------
 void updateOccupancy(unsigned long now) {
   if (now < PIR_WARMUP) {                  // PIR gives false alarms while warming up
     occupied = false;
     return;
   }
-
-  bool pirHigh = (digitalRead(PIR_PIN) == HIGH);
-
-  // Remember when the current HIGH run started
-  if (pirHigh && !pirWasHigh) pirHighSince = now;
-  pirWasHigh = pirHigh;
-
-  // Filter 1: a relay just switched, so the reading may be electrical noise
-  bool blanked = (now - lastRelayChange < RELAY_BLANK);
-
-  // Filter 2: a person pauses now and then, a fan never does.
-  // If the PIR has been HIGH non-stop for too long, stop counting it.
-  bool stuck = pirHigh && (now - pirHighSince > PIR_STUCK_LIMIT);
-
-  if (pirHigh && !blanked && !stuck) {     // only real-looking motion restarts the timer
+  if (digitalRead(PIR_PIN) == HIGH) {      // any motion restarts the timer
     lastMotionTime = now;
     everSeenMotion = true;
   }
@@ -208,26 +180,15 @@ void updateOccupancy(unsigned long now) {
 }
 
 // ---------- The brain: decide what the fan and light should do ----------
-void runAutomation(unsigned long now) {
-  // Read the LDR, but only believe a change after it has lasted a while ("debounce")
-  bool rawDark = (digitalRead(LDR_PIN) == LDR_DARK_LEVEL);
-  if (rawDark != lastRawDark) {            // the reading just changed: restart the clock
-    lastRawDark = rawDark;
-    lightChangeAt = now;
-  }
-  unsigned long stableFor = now - lightChangeAt;
-  if (rawDark && stableFor >= LIGHT_ON_DELAY) dark = true;
-  if (!rawDark && stableFor >= LIGHT_OFF_DELAY) dark = false;
-  // in between, 'dark' keeps its old value
+void runAutomation() {
+  dark = (digitalRead(LDR_PIN) == LDR_DARK_LEVEL);
 
   // FAN: hysteresis (ON at tempOn, OFF at tempOff, hold in between)
   if (!occupied) autoFan = false;
   else if (temperature >= tempOn) autoFan = true;
   else if (temperature <= tempOff) autoFan = false;
 
-  // LIGHT: ON only when someone is in the room AND it is dark.
-  // Daylight turns it off (the old "stay on until empty" latch is gone).
-  autoLight = occupied && dark;
+  autoLight = occupied && dark;     // bright room turns the light off
 
   // A manual command beats AUTO
   if (fanMode == AUTO) fanOn = autoFan;
@@ -237,13 +198,8 @@ void runAutomation(unsigned long now) {
   else lightOn = (lightMode == FORCE_ON);
 }
 
-// ---------- Switch the relays (and note when one changes) ----------
-void driveRelays(unsigned long now) {
-  if (fanOn != lastFanOut || lightOn != lastLightOut) {
-    lastRelayChange = now;                 // the PIR filter uses this
-    lastFanOut = fanOn;
-    lastLightOut = lightOn;
-  }
+// ---------- Switch the relays ----------
+void driveRelays() {
   digitalWrite(FAN_RELAY,   fanOn   ? RELAY_ON : RELAY_OFF);
   digitalWrite(LIGHT_RELAY, lightOn ? RELAY_ON : RELAY_OFF);
 }
@@ -298,8 +254,8 @@ void loop() {
 
   updateOccupancy(now);
   bool newReading = readSensors(now);
-  runAutomation(now);
-  driveRelays(now);
+  runAutomation();
+  driveRelays();
 
   if ((newReading || publishNow) && mqtt.connected()) {
     publishNow = false;

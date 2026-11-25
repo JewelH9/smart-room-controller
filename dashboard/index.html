@@ -316,16 +316,56 @@
         line-height: 1.6;
         margin-top: 8px;
       }
-      .aiout {
-        white-space: pre-wrap;
-        background: var(--c2);
-        border: 1px solid var(--ln);
-        border-radius: 12px;
-        padding: 12px;
-        margin-top: 10px;
-        min-height: 60px;
+      .ir {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--ln);
         font-size: 0.9rem;
-        line-height: 1.5;
+        line-height: 1.45;
+      }
+      .ir span:first-child {
+        font-size: 1.2rem;
+      }
+      .ir span:nth-child(2) {
+        flex: 1;
+      }
+      .hab {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 80px;
+        margin-top: 8px;
+      }
+      .hb {
+        flex: 1;
+        background: var(--ac);
+        border-radius: 3px 3px 0 0;
+        min-height: 4px;
+      }
+      .hb.now {
+        background: var(--gd);
+      }
+      .hx {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: var(--mu);
+        margin-top: 4px;
+      }
+      .chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .chips button {
+        padding: 6px 12px;
+        border-radius: 99px;
+        border: 1px solid var(--ln);
+        background: var(--c2);
+        font-size: 0.8rem;
       }
       .ask {
         display: flex;
@@ -349,6 +389,17 @@
         border-radius: 10px;
         background: var(--ac);
         color: #fff;
+      }
+      .aiout {
+        white-space: pre-wrap;
+        background: var(--c2);
+        border: 1px solid var(--ln);
+        border-radius: 12px;
+        padding: 12px;
+        margin-top: 10px;
+        min-height: 56px;
+        font-size: 0.9rem;
+        line-height: 1.5;
       }
       #toast {
         position: fixed;
@@ -487,8 +538,8 @@
           </g>
           <g class="nd">
             <rect x="635" y="140" width="120" height="62" rx="12" />
-            <text x="695" y="168">AI (Gemini)</text>
-            <text class="s" x="695" y="187">advice only</text>
+            <text x="695" y="168">Insights</text>
+            <text class="s" x="695" y="187">learns in your browser</text>
           </g>
           <path class="ln" d="M145 55H213" marker-end="url(#ar)" />
           <path class="ln" d="M365 55H433" marker-end="url(#ar)" />
@@ -522,8 +573,48 @@
           <b>1</b> Sensors detect motion, temperature and light. <b>2</b> The
           ESP32 applies your rules (timeout, hysteresis). <b>3</b> A relay
           switches the appliance. <b>4</b> Status travels through the MQTT
-          broker to this page, and your commands travel back. The AI only
-          suggests, you approve. Green outline = active right now.
+          broker to this page, and your commands travel back. Green outline =
+          active right now.
+        </div>
+      </section>
+
+      <section class="card w">
+        <div class="lb">🧠 Smart insights</div>
+        <div id="ins"></div>
+        <div class="lb" style="margin-top: 16px">
+          Your usual day (learned from this room)
+        </div>
+        <div class="hab" id="hab"></div>
+        <div class="hx">
+          <span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span
+          ><span>24:00</span>
+        </div>
+        <div class="sub">
+          Bar height = share of that hour the room was occupied. Faded bars =
+          not enough data yet. Green = current hour.
+        </div>
+        <div class="lb" style="margin-top: 16px">Ask your room</div>
+        <div class="chips">
+          <button>Why is the fan on?</button
+          ><button>How much energy did I save?</button
+          ><button>Will it get hotter?</button
+          ><button>When am I usually here?</button
+          ><button>Is my timeout good?</button>
+        </div>
+        <div class="ask">
+          <input id="qIn" placeholder="Type a question..." /><button id="qGo">
+            Ask
+          </button>
+        </div>
+        <div class="aiout" id="qOut">
+          Pick a question above or type your own.
+        </div>
+        <div class="note">
+          Everything here runs in your browser from your own sensor data, with
+          nothing sent anywhere. Methods: linear regression (trend), hourly
+          learning (habits), event counting (timeout tuner) and keyword matching
+          (questions). It is analytics and simple machine learning, not a large
+          language model.
         </div>
       </section>
 
@@ -590,44 +681,6 @@
           <li><time>--</time><span>Waiting for events...</span></li>
         </ul>
       </section>
-
-      <section class="card w">
-        <div class="lb">🤖 AI room assistant (Gemini free tier)</div>
-        <div class="pr">
-          <button id="aiI">📊 Analyse my room</button
-          ><button id="aiS">🎛️ Suggest settings</button>
-        </div>
-        <div class="ask">
-          <input id="aiQ" placeholder="Ask: why is the fan on?" /><button
-            id="aiA"
-          >
-            Ask
-          </button>
-        </div>
-        <div class="aiout" id="aiOut">
-          Paste your free Gemini key below, then try a button.
-        </div>
-        <div id="aiApply"></div>
-        <details>
-          <summary class="sub">🔑 Key and model</summary>
-          <div class="ask">
-            <input
-              id="aiKey"
-              type="password"
-              placeholder="Gemini API key (stays in this browser)"
-            /><input id="aiModel" placeholder="model name" /><button
-              id="aiSave"
-            >
-              Save
-            </button>
-          </div>
-          <div class="note">
-            The key lives only in this browser's storage. Never put it in this
-            file. If you get "model not found", copy a current model name from
-            AI Studio.
-          </div>
-        </details>
-      </section>
     </main>
     <div id="toast"></div>
 
@@ -649,7 +702,8 @@
         prev = null,
         lastTs = null,
         lastMsg = 0,
-        cfgInit = false;
+        cfgInit = false,
+        whyText = "";
       const hist = [];
       let store = JSON.parse(localStorage.getItem("energy") || "{}");
       if (store.day !== new Date().toDateString())
@@ -761,7 +815,8 @@
               : d.dark
                 ? "Light ON: room occupied and dark."
                 : "Light OFF: the room is bright enough.";
-        $("why").textContent = "💡 Why? " + f + " " + l;
+        whyText = f + " " + l;
+        $("why").textContent = "💡 Why? " + whyText;
       }
 
       function handleStatus(d) {
@@ -859,6 +914,8 @@
           updateSliderLabels();
           cfgInit = true;
         }
+        learn(d);
+        renderInsights();
         prev = d;
       }
 
@@ -1013,18 +1070,17 @@
           }),
       );
 
-      // ================= AI ASSISTANT (Gemini free tier) =================
-      const SYSTEM =
-        "You are the assistant inside a home-automation dashboard for one room. Rules: the fan turns ON when the room is occupied and temp >= tOn, OFF when temp <= tOff or the room is empty. The light turns ON when occupied and dark. Everything turns OFF after 'timeout' seconds without motion. A PIR can be falsely triggered by fans or sunlight. Use ONLY the data given; if it is too little, say so. Never claim you changed anything. Under 150 words, plain language.";
-      $("aiKey").value = localStorage.getItem("aiKey") || "";
-      $("aiModel").value =
-        localStorage.getItem("aiModel") || "gemini-3.5-flash-lite";
-      $("aiSave").onclick = () => {
-        localStorage.setItem("aiKey", $("aiKey").value.trim());
-        localStorage.setItem("aiModel", $("aiModel").value.trim());
-        toast("AI settings saved in this browser");
-      };
-      let pattern = JSON.parse(localStorage.getItem("pattern") || "{}"); // learns occupancy per hour while the page is open
+      // ================= SMART INSIGHTS (runs in the browser, no API key) =================
+      const trend = [];
+      let lastTrend = 0; // one temperature point per 15 s (~20 min)
+      let pattern = JSON.parse(localStorage.getItem("pattern") || "{}"); // hour -> [seconds occupied, seconds watched]
+      let offs = JSON.parse(localStorage.getItem("offs") || "{}"); // timeout tuner counters
+      let lastEmptyAt = 0,
+        anomalyUntil = 0,
+        anomalyMsg = "",
+        insSig = "";
+
+      // Learn the habit pattern: every 10 s, add to the current hour (only while live data arrives)
       setInterval(() => {
         if (!last || Date.now() - lastMsg > 6000) return;
         const h = new Date().getHours();
@@ -1033,191 +1089,337 @@
         if (last.occupied) pattern[h][0] += 10;
         localStorage.setItem("pattern", JSON.stringify(pattern));
       }, 10000);
-      function roomSummary() {
-        const t = hist.map((p) => p.temp),
-          o = hist.filter((p) => p.occ).length;
-        const hrs = Object.keys(pattern)
-          .filter((h) => pattern[h][1] >= 300)
-          .map(
-            (h) =>
-              h +
-              ":00 occupied " +
-              Math.round((100 * pattern[h][0]) / pattern[h][1]) +
-              "%",
-          );
-        return {
-          now: {
-            temp: last.temp,
-            humidity: last.hum,
-            dark: last.dark,
-            occupied: last.occupied,
-            fanOn: last.fan,
-            lightOn: last.light,
-            fanMode: last.fanMode,
-            lightMode: last.lightMode,
-          },
-          settings: {
-            tOn: last.tOn,
-            tOff: last.tOff,
-            timeoutSeconds: last.timeout,
-          },
-          recent: {
-            minutes: Math.round((hist.length * 2) / 60),
-            minTemp: Math.min(...t),
-            maxTemp: Math.max(...t),
-            percentOccupied: Math.round((100 * o) / hist.length),
-          },
-          todayMinutes: {
-            fan: Math.round(store.fan / 60),
-            light: Math.round(store.light / 60),
-            wasteAvoidedFan: Math.round(store.sFan / 60),
-            wasteAvoidedLight: Math.round(store.sLight / 60),
-          },
-          hourlyHabits: hrs.length ? hrs : "not enough days of data yet",
-          events: [...document.querySelectorAll("#log li")]
-            .slice(0, 10)
-            .map((l) => l.textContent),
-        };
+
+      // Called on every status update: collects data for the insights
+      function learn(d) {
+        const now = Date.now();
+        if (now - lastTrend > 15000) {
+          lastTrend = now;
+          trend.push({ t: now, temp: d.temp });
+          if (trend.length > 80) trend.shift();
+        }
+        if (!prev) return;
+        if (prev.occupied && !d.occupied) {
+          // room just became empty
+          lastEmptyAt = now;
+          if (offs.timeout !== d.timeout)
+            offs = { timeout: d.timeout, total: 0, quick: 0 };
+          offs.total++;
+          localStorage.setItem("offs", JSON.stringify(offs));
+        }
+        if (
+          !prev.occupied &&
+          d.occupied &&
+          lastEmptyAt &&
+          now - lastEmptyAt < 60000 &&
+          offs.timeout === d.timeout
+        ) {
+          // someone came back within 1 min
+          offs.quick++;
+          localStorage.setItem("offs", JSON.stringify(offs));
+        }
+        if (Math.abs(d.temp - prev.temp) > 2) {
+          anomalyUntil = now + 120000;
+          anomalyMsg =
+            "Sudden temperature jump of " +
+            Math.abs(d.temp - prev.temp).toFixed(1) +
+            " °C. Check the DHT22 wiring or a nearby heat source.";
+        }
       }
-      let aiBusy = false;
-      async function runAI(prompt, json) {
-        if (aiBusy) return null;
-        const key = localStorage.getItem("aiKey"),
-          out = $("aiOut");
-        if (!key) {
-          out.textContent =
-            "Paste your free Gemini key under 'Key and model' first.";
-          return null;
+
+      // Linear regression: °C per minute over the last 20 minutes (needs about 3 minutes of data)
+      function slope() {
+        const p = trend.filter((q) => Date.now() - q.t < 20 * 60000);
+        if (p.length < 12) return null;
+        const t0 = p[0].t,
+          xs = p.map((q) => (q.t - t0) / 60000),
+          ys = p.map((q) => q.temp),
+          n = xs.length,
+          mx = xs.reduce((a, b) => a + b) / n,
+          my = ys.reduce((a, b) => a + b) / n;
+        let num = 0,
+          den = 0;
+        for (let i = 0; i < n; i++) {
+          num += (xs[i] - mx) * (ys[i] - my);
+          den += (xs[i] - mx) ** 2;
         }
-        if (!last) {
-          out.textContent = "No live data yet. Wait for the device to connect.";
-          return null;
-        }
-        aiBusy = true;
-        out.textContent = "Thinking...";
-        try {
-          const body = {
-            systemInstruction: { parts: [{ text: SYSTEM }] },
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  {
-                    text: prompt + "\nDATA:\n" + JSON.stringify(roomSummary()),
-                  },
-                ],
-              },
-            ],
-            generationConfig: { maxOutputTokens: 1000, temperature: 0.4 },
-          };
-          if (json) body.generationConfig.responseMimeType = "application/json";
-          const res = await fetch(
-            "https://generativelanguage.googleapis.com/v1beta/models/" +
-              (localStorage.getItem("aiModel") || "gemini-3.5-flash-lite") +
-              ":generateContent",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": key,
-              },
-              body: JSON.stringify(body),
-            },
-          );
-          if (!res.ok) {
-            out.textContent =
-              res.status === 429
-                ? "Rate limit reached. Wait a minute."
-                : res.status === 404
-                  ? "Model name not found. Copy a current one from AI Studio."
-                  : res.status === 400 || res.status === 403
-                    ? "Request rejected. Check the key and model name."
-                    : "Error " + res.status;
-            return null;
+        return den ? num / den : null;
+      }
+      function ranges(a) {
+        const r = [];
+        let s = a[0],
+          p = a[0];
+        for (let i = 1; i <= a.length; i++) {
+          if (a[i] !== p + 1) {
+            r.push(s === p ? s + ":00" : s + ":00 to " + (p + 1) + ":00");
+            s = a[i];
           }
-          const data = await res.json(),
-            parts =
-              (data.candidates &&
-                data.candidates[0] &&
-                data.candidates[0].content.parts) ||
-              [];
-          return (
-            parts
-              .map((p) => p.text || "")
-              .join("")
-              .trim() || "(empty answer)"
-          );
-        } catch (e) {
-          out.textContent = "Network error. Check your connection.";
-          return null;
-        } finally {
-          setTimeout(() => {
-            aiBusy = false;
-          }, 4000);
+          p = a[i];
         }
+        return r.join(", ");
       }
-      async function show(prompt) {
-        $("aiApply").innerHTML = "";
-        const a = await runAI(prompt, false);
-        if (a) $("aiOut").textContent = a;
-      }
-      $("aiI").onclick = () =>
-        show(
-          "Analyse this room's data and give 3 short, practical tips to save power or improve comfort.",
-        );
-      const ask = () => {
-        const q = $("aiQ").value.trim();
-        if (q) show("Question: " + q);
-      };
-      $("aiA").onclick = ask;
-      $("aiQ").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") ask();
-      });
-      $("aiS").onclick = async () => {
-        $("aiApply").innerHTML = "";
-        const a = await runAI(
-          'Suggest fan thresholds and a room-empty timeout. Reply ONLY as JSON: {"tOn":number,"tOff":number,"timeout":number,"reason":"short text"}. tOn 22-35, tOff at least 1 below tOn, timeout seconds 30-1800.',
-          true,
-        );
-        if (!a) return;
-        let s;
-        try {
-          s = JSON.parse(a.replace(/```json|```/g, ""));
-        } catch {
-          $("aiOut").textContent =
-            "The AI did not return valid JSON. Try again.";
-          return;
+
+      function insights() {
+        const d = last;
+        if (!d)
+          return {
+            wait: { i: "⏳", t: "Waiting for live data from the device..." },
+          };
+        const I = {},
+          m = slope();
+        if (m === null)
+          I.trend = {
+            i: "📈",
+            t: "Temperature trend: collecting data (needs about 3 minutes).",
+          };
+        else {
+          const per10 = m * 10;
+          let s =
+            "Temperature is " +
+            (Math.abs(per10) < 0.2
+              ? "steady"
+              : per10 > 0
+                ? "rising"
+                : "falling") +
+            " (" +
+            (per10 >= 0 ? "+" : "") +
+            per10.toFixed(1) +
+            " °C per 10 min). Estimate in 10 min: " +
+            (d.temp + per10).toFixed(1) +
+            " °C.";
+          if (m > 0.01 && d.temp < d.tOn) {
+            const mins = (d.tOn - d.temp) / m;
+            if (mins <= 60)
+              s +=
+                " The fan limit (" +
+                d.tOn +
+                " °C) could be reached in about " +
+                Math.round(mins) +
+                " min.";
+          }
+          I.trend = { i: "📈", t: s };
         }
-        const on = Number(s.tOn),
-          off = Number(s.tOff),
-          to = Math.round(Number(s.timeout));
-        if (!(on > off && on <= 40 && off >= 10 && to >= 5 && to <= 3600)) {
-          $("aiOut").textContent =
-            "The AI suggested unsafe values, so they were ignored.";
-          return;
-        } // never trust AI output
-        $("aiOut").textContent =
-          "Suggestion: fan ON at " +
-          on +
-          " °C, OFF at " +
-          off +
-          " °C, timeout " +
-          fmt(to) +
-          "\nWhy: " +
-          String(s.reason || "").slice(0, 300);
-        const b = document.createElement("button");
-        b.className = "apply";
-        b.textContent = "Apply these settings to the device";
-        b.onclick = () => {
-          $("sOn").value = on;
-          $("sOff").value = off;
-          $("sTo").value = to;
-          updateSliderLabels();
-          sendConfig(on, off, to);
-          $("aiApply").innerHTML = "";
+        const same = offs.timeout === d.timeout,
+          total = same ? offs.total || 0 : 0,
+          quick = same ? offs.quick || 0 : 0;
+        if (total < 5)
+          I.timeout = {
+            i: "⏱️",
+            t:
+              "Timeout tuner: still learning (" +
+              total +
+              " of 5 'room empty' events seen at " +
+              fmt(d.timeout) +
+              ").",
+          };
+        else if (quick / total >= 0.3) {
+          const n = Math.min(1800, Math.round((d.timeout * 1.5) / 5) * 5);
+          I.timeout = {
+            i: "⏱️",
+            t:
+              quick +
+              " of " +
+              total +
+              " times someone came back within 1 minute of the room being marked empty, so the timeout (" +
+              fmt(d.timeout) +
+              ") may be too short. Suggested: " +
+              fmt(n) +
+              ".",
+            apply: n,
+          };
+        } else if (quick === 0 && total >= 10 && d.timeout > 120) {
+          const n = Math.max(60, Math.round((d.timeout * 0.75) / 5) * 5);
+          I.timeout = {
+            i: "⏱️",
+            t:
+              "Nobody came back quickly in the last " +
+              total +
+              " empty events. A shorter timeout of " +
+              fmt(n) +
+              " could save power.",
+            apply: n,
+          };
+        } else
+          I.timeout = {
+            i: "⏱️",
+            t:
+              "Timeout looks well tuned: " +
+              quick +
+              " quick returns in " +
+              total +
+              " empty events.",
+          };
+        const hrs = Object.keys(pattern)
+          .map(Number)
+          .filter((h) => pattern[h][1] >= 120)
+          .sort((a, b) => a - b);
+        if (hrs.length < 3)
+          I.habit = {
+            i: "🗓️",
+            t:
+              "Habit learning: " +
+              hrs.length +
+              " hour(s) observed so far. Keep this page open to learn your day.",
+          };
+        else {
+          const busy = hrs.filter((h) => pattern[h][0] / pattern[h][1] >= 0.5);
+          I.habit = {
+            i: "🗓️",
+            t: busy.length
+              ? "You are usually in the room around " + ranges(busy) + "."
+              : "No busy hour yet among the " + hrs.length + " hours observed.",
+          };
+        }
+        const sv = (store.sFan * FAN_W + store.sLight * LIGHT_W) / 3600,
+          rate = parseFloat($("tariff").value) || 8;
+        I.energy = {
+          i: "⚡",
+          t:
+            "Today: " +
+            Math.round(store.fan / 60) +
+            " min of fan and " +
+            Math.round(store.light / 60) +
+            " min of light. Waste avoided so far: " +
+            sv.toFixed(1) +
+            " Wh (about ₹" +
+            ((sv / 1000) * rate).toFixed(2) +
+            ").",
         };
-        $("aiApply").appendChild(b);
-      };
+        if (Date.now() < anomalyUntil) I.alert = { i: "⚠️", t: anomalyMsg };
+        return I;
+      }
+
+      function renderInsights() {
+        const I = insights(),
+          rows = Object.values(I),
+          sig = JSON.stringify(rows);
+        if (sig !== insSig) {
+          insSig = sig;
+          const box = $("ins");
+          box.innerHTML = "";
+          rows.forEach((x) => {
+            const row = document.createElement("div");
+            row.className = "ir";
+            const a = document.createElement("span"),
+              b = document.createElement("span");
+            a.textContent = x.i;
+            b.textContent = x.t;
+            row.append(a, b); // textContent: safe
+            if (x.apply) {
+              const bt = document.createElement("button");
+              bt.className = "gh";
+              bt.textContent = "Apply " + fmt(x.apply);
+              bt.onclick = () => {
+                $("sTo").value = x.apply;
+                updateSliderLabels();
+                sendConfig(last.tOn, last.tOff, x.apply);
+              };
+              row.append(bt);
+            }
+            box.append(row);
+          });
+        }
+        const hb = $("hab");
+        hb.innerHTML = "";
+        const nowH = new Date().getHours();
+        for (let h = 0; h < 24; h++) {
+          const p = pattern[h],
+            ok = p && p[1] >= 120,
+            v = ok ? p[0] / p[1] : 0,
+            c = document.createElement("div");
+          c.className = "hb" + (h === nowH ? " now" : "");
+          c.style.height = (ok ? Math.max(6, v * 100) : 6) + "%";
+          c.style.opacity = ok ? 1 : 0.25;
+          c.title =
+            h +
+            ":00 " +
+            (ok ? Math.round(v * 100) + "% occupied" : "no data yet");
+          hb.append(c);
+        }
+      }
+
+      // "Ask your room": keyword matching over the live data
+      function answer(q) {
+        q = q.toLowerCase();
+        const d = last,
+          I = insights();
+        if (!d)
+          return "I have no live data yet. Wait for the device to connect.";
+        const has = (...w) => w.some((x) => q.includes(x));
+        if (has("why", "reason", "explain")) return whyText;
+        if (
+          has(
+            "energy",
+            "power",
+            "save",
+            "saving",
+            "cost",
+            "bill",
+            "money",
+            "wast",
+          )
+        )
+          return I.energy.t;
+        if (has("usually", "habit", "pattern", "routine", "often"))
+          return I.habit.t;
+        if (has("timeout", "setting", "suggest", "recommend", "tune"))
+          return I.timeout.t;
+        if (has("humid"))
+          return (
+            "Humidity is " +
+            d.hum +
+            "% (" +
+            (d.hum > 70 ? "humid" : d.hum < 30 ? "dry" : "comfortable") +
+            ")."
+          );
+        if (
+          has(
+            "hot",
+            "warm",
+            "trend",
+            "forecast",
+            "predict",
+            "temp",
+            "rising",
+            "cool",
+          )
+        )
+          return "It is " + d.temp.toFixed(1) + " °C now. " + I.trend.t;
+        if (has("light", "dark", "bright"))
+          return (
+            "The room is " +
+            (d.dark ? "dark" : "bright") +
+            " and the light is " +
+            (d.light ? "ON" : "OFF") +
+            " (" +
+            d.lightMode +
+            "). " +
+            whyText
+          );
+        if (has("room", "occupied", "motion", "anyone", "empty"))
+          return d.occupied
+            ? "Motion was detected recently. Auto-off in " +
+                fmt(d.left) +
+                " if there is no more motion."
+            : "No motion detected, so appliances are held OFF.";
+        return "I can answer questions about why the fan or light is on, energy saved, the temperature trend, your usual routine and the timeout. Try the buttons above.";
+      }
+      function askRoom() {
+        const q = $("qIn").value.trim();
+        if (q) $("qOut").textContent = answer(q);
+      }
+      $("qGo").onclick = askRoom;
+      $("qIn").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") askRoom();
+      });
+      document.querySelectorAll(".chips button").forEach(
+        (b) =>
+          (b.onclick = () => {
+            $("qIn").value = b.textContent;
+            askRoom();
+          }),
+      );
+      renderInsights();
     </script>
   </body>
 </html>
